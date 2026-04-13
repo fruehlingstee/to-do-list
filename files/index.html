@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <meta name="theme-color" content="#0e0f11" />
+  <meta name="description" content="TASKS — Personal To-Do Manager" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="TASKS" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icon.svg" />
+  <title>TASKS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="noise"></div>
+  <div class="app">
+
+    <!-- ── Header ── -->
+    <header class="header">
+      <div class="header-left">
+        <span class="logo-mark">▸</span>
+        <h1 class="logo">TASKS</h1>
+        <span class="version">v2.0</span>
+      </div>
+      <div class="header-right">
+        <div class="reset-toggle" title="自動リセット：繰り返しタスクを設定時刻に自動解除">
+          <span class="toggle-label">手動</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="autoResetToggle" />
+            <span class="slider"></span>
+          </label>
+          <span class="toggle-label-right">自動</span>
+        </div>
+        <button id="pwaInstallBtn" class="action-btn pwa-btn" style="display:none;">⊕ APP</button>
+      </div>
+    </header>
+
+    <!-- ── Stats ── -->
+    <div class="stats-bar">
+      <div class="stat">
+        <span class="stat-num" id="totalCount">0</span>
+        <span class="stat-label">TOTAL</span>
+      </div>
+      <div class="stat-divider"></div>
+      <div class="stat">
+        <span class="stat-num" id="pendingCount">0</span>
+        <span class="stat-label">PENDING</span>
+      </div>
+      <div class="stat-divider"></div>
+      <div class="stat">
+        <span class="stat-num" id="doneCount">0</span>
+        <span class="stat-label">DONE</span>
+      </div>
+      <div class="stat-divider"></div>
+      <div class="stat">
+        <span class="stat-num overdue-num" id="overdueCount">0</span>
+        <span class="stat-label overdue-label">OVERDUE</span>
+      </div>
+      <div class="progress-wrap">
+        <div class="progress-bar">
+          <div class="progress-fill" id="progressFill"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Search + Sort ── -->
+    <div class="search-sort-bar">
+      <div class="search-wrap">
+        <span class="search-icon">⌕</span>
+        <input
+          type="text"
+          id="searchInput"
+          class="search-input"
+          placeholder="タスク・メモを検索..."
+          autocomplete="off"
+        />
+        <button id="clearSearch" class="clear-search" aria-label="検索クリア" style="display:none;">✕</button>
+      </div>
+      <select id="sortSelect" class="sort-select">
+        <option value="default">追加順</option>
+        <option value="priority">優先度順</option>
+        <option value="dueDate">期限日順</option>
+        <option value="name">名前順</option>
+        <option value="created">作成日順</option>
+      </select>
+    </div>
+
+    <!-- ── Input ── -->
+    <div class="input-section">
+      <div class="input-row">
+        <input
+          type="text"
+          id="taskInput"
+          class="task-input"
+          placeholder="新しいタスクを入力..."
+          maxlength="120"
+          autocomplete="off"
+        />
+        <select id="prioritySelect" class="priority-select">
+          <option value="high">● HIGH</option>
+          <option value="medium" selected>● MED</option>
+          <option value="low">● LOW</option>
+        </select>
+        <button id="expandInputBtn" class="expand-input-btn" title="期限・繰り返し・メモ">▾ 詳細</button>
+        <button id="addBtn" class="add-btn">ADD <span class="add-shortcut">↵</span></button>
+      </div>
+
+      <!-- Expandable extra options -->
+      <div class="input-extra" id="inputExtra">
+        <div class="extra-grid">
+          <div class="extra-field">
+            <label class="extra-label">期限日</label>
+            <input type="date" id="dueDateInput" class="extra-input date-input" />
+          </div>
+          <div class="extra-field">
+            <label class="extra-label">繰り返し</label>
+            <div class="recurring-row">
+              <label class="mini-toggle">
+                <input type="checkbox" id="recurringToggle" />
+                <span class="mini-slider"></span>
+              </label>
+              <select id="recurringInterval" class="interval-select" disabled>
+                <option value="daily">毎日</option>
+                <option value="weekly">毎週月曜</option>
+                <option value="monthly">毎月1日</option>
+              </select>
+            </div>
+          </div>
+          <div class="extra-field extra-notes-field">
+            <label class="extra-label">メモ</label>
+            <textarea
+              id="notesInput"
+              class="extra-textarea"
+              placeholder="補足メモ..."
+              rows="2"
+              maxlength="400"
+            ></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Filters ── -->
+    <div class="filter-bar">
+      <button class="filter-btn active" data-filter="all">ALL</button>
+      <button class="filter-btn" data-filter="pending">PENDING</button>
+      <button class="filter-btn" data-filter="done">DONE</button>
+      <button class="filter-btn" data-filter="overdue">OVERDUE</button>
+      <button class="filter-btn" data-filter="recurring">RECURRING</button>
+      <div class="filter-actions">
+        <button id="clearDoneBtn" class="action-btn">CLEAR DONE</button>
+        <button id="resetAllBtn" class="action-btn danger">RESET ALL</button>
+      </div>
+    </div>
+
+    <!-- ── Task list ── -->
+    <ul class="task-list" id="taskList"></ul>
+
+    <!-- Empty state -->
+    <div class="empty-state" id="emptyState">
+      <div class="empty-icon">▢</div>
+      <p id="emptyMsg">タスクがありません</p>
+      <p class="empty-sub" id="emptySubMsg">上のフォームから追加してください</p>
+    </div>
+
+    <!-- Auto reset info -->
+    <div class="auto-info" id="autoInfo" style="display:none;">
+      <span class="auto-icon">↻</span>
+      次の自動リセット（繰り返しタスクのみ）: <strong id="nextResetTime">—</strong>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <span id="lastSaved">—</span>
+      <span class="footer-tip">ドラッグ並び替え ／ ▸ サブタスク展開</span>
+    </footer>
+  </div>
+
+  <!-- ── Edit modal ── -->
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal">
+      <div class="modal-header">
+        <span class="modal-title">EDIT TASK</span>
+        <button class="modal-close" id="modalClose">✕</button>
+      </div>
+      <input type="text" id="editInput" class="modal-input" maxlength="120" />
+      <div class="modal-grid">
+        <div class="modal-field">
+          <label class="extra-label">優先度</label>
+          <select id="editPriority" class="priority-select full-width">
+            <option value="high">● HIGH</option>
+            <option value="medium">● MED</option>
+            <option value="low">● LOW</option>
+          </select>
+        </div>
+        <div class="modal-field">
+          <label class="extra-label">期限日</label>
+          <input type="date" id="editDueDate" class="extra-input date-input full-width" />
+        </div>
+        <div class="modal-field modal-recurring">
+          <label class="extra-label">繰り返し</label>
+          <div class="recurring-row">
+            <label class="mini-toggle">
+              <input type="checkbox" id="editRecurring" />
+              <span class="mini-slider"></span>
+            </label>
+            <select id="editRecurringInterval" class="interval-select" disabled>
+              <option value="daily">毎日</option>
+              <option value="weekly">毎週月曜</option>
+              <option value="monthly">毎月1日</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="modal-field">
+        <label class="extra-label">メモ</label>
+        <textarea id="editNotes" class="extra-textarea" rows="3" maxlength="400"></textarea>
+      </div>
+      <div class="modal-actions">
+        <button id="saveEditBtn" class="add-btn">SAVE</button>
+        <button id="cancelEditBtn" class="action-btn">CANCEL</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

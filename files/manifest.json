@@ -1,0 +1,28 @@
+{
+  "name": "TASKS — To-Do Manager",
+  "short_name": "TASKS",
+  "description": "シンプルで高機能なパーソナルタスク管理アプリ",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0e0f11",
+  "theme_color": "#0e0f11",
+  "orientation": "portrait-primary",
+  "lang": "ja",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["productivity", "utilities"],
+  "shortcuts": [
+    {
+      "name": "タスクを追加",
+      "short_name": "追加",
+      "description": "新しいタスクを追加",
+      "url": "./index.html"
+    }
+  ]
+}
