@@ -22,6 +22,8 @@ const expandedTasks = new Set(); // task IDs with subtasks expanded
 const STORAGE_KEY  = 'tasks_v2';
 const SETTINGS_KEY = 'tasks_settings_v2';
 
+let lastResetDate = null; // 'YYYY-MM-DD' 形式で最後にリセットした日付を保存
+
 // ─────────────────────────────────────────────────────
 // DOM refs
 // ─────────────────────────────────────────────────────
@@ -109,7 +111,7 @@ function getRecurringLabel(interval) {
 
 function save() {
   localStorage.setItem(STORAGE_KEY,  JSON.stringify(tasks));
-  localStorage.setItem(SETTINGS_KEY, JSON.stringify({ autoReset }));
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify({ autoReset, lastResetDate }));
   const now = new Date();
   lastSaved.textContent = `saved ${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`;
 }
@@ -127,6 +129,7 @@ function loadFromStorage() {
     try {
       const s = JSON.parse(rawSettings);
       autoReset = s.autoReset ?? false;
+      lastResetDate = s.lastResetDate ?? null;
       autoResetToggle.checked = autoReset;
     } catch {}
   }
@@ -344,13 +347,30 @@ function shouldResetToday(task) {
   }
 }
 
-function runAutoReset() {
+function runAutoReset(silent = false) {
   let n = 0;
   tasks.forEach(t => {
     if (shouldResetToday(t) && t.done) { t.done = false; n++; }
   });
-  if (n > 0) { save(); render(); showToast(`自動リセット完了（${n}件）`, 'success'); }
-  scheduleAutoReset(); // reschedule for next midnight
+  lastResetDate = getTodayStr();
+  save();
+  if (n > 0) {
+    render();
+    if (!silent) showToast(`自動リセット完了（${n}件）`, 'success');
+  }
+  scheduleAutoReset();
+}
+
+/**
+ * ページを開いたとき、前回リセット日が今日より前なら
+ * （＝ページを閉じていてmidnightをまたいでいたなら）即座にリセット実行
+ */
+function checkMissedReset() {
+  if (!autoReset) return;
+  const today = getTodayStr();
+  if (lastResetDate !== today) {
+    runAutoReset(true); // silentモード：トーストは出さずにリセット
+  }
 }
 
 function scheduleAutoReset() {
@@ -358,7 +378,7 @@ function scheduleAutoReset() {
   const now  = new Date();
   const next = new Date(now);
   next.setHours(24, 0, 0, 100);
-  autoResetTimer = setTimeout(runAutoReset, next.getTime() - now.getTime());
+  autoResetTimer = setTimeout(() => runAutoReset(false), next.getTime() - now.getTime());
   updateAutoInfo();
 }
 
@@ -468,9 +488,9 @@ function buildTaskItem(task) {
     main.appendChild(ri);
   }
 
-  // Priority badge
+  const priorityLabels = { high: '高', medium: '中', low: '低' };
   const badge = el('span', `priority-badge ${task.priority}`);
-  badge.textContent = task.priority.toUpperCase();
+  badge.textContent = priorityLabels[task.priority] || task.priority;
   main.appendChild(badge);
 
   // Actions
@@ -682,7 +702,7 @@ function bindEvents() {
   expandInputBtn.addEventListener('click', () => {
     const isOpen = inputExtra.classList.toggle('open');
     expandInputBtn.classList.toggle('active', isOpen);
-    expandInputBtn.textContent = isOpen ? '▴ 詳細' : '▾ 詳細';
+    expandInputBtn.textContent = isOpen ? '▴ 詳細を閉じる' : '▾ 詳細を開く';
   });
 
   // Recurring toggle sync (add form)
@@ -770,9 +790,9 @@ function bindEvents() {
 
 function init() {
   loadFromStorage();
-  // Sync disabled state for recurring selects
   syncRecurringInterval(recurringToggle,  recurringInterval);
   syncRecurringInterval(editRecurring,    editRecurringInt);
+  checkMissedReset(); // ← ページ起動時に「リセット漏れ」がないか確認
   render();
   bindEvents();
   if (autoReset) scheduleAutoReset();

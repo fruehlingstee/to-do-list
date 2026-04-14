@@ -37,7 +37,7 @@
           </label>
           <span class="toggle-label-right">自動</span>
         </div>
-        <button id="pwaInstallBtn" class="action-btn pwa-btn" style="display:none;">⊕ APP</button>
+        <button id="pwaInstallBtn" class="action-btn pwa-btn" style="display:none;">⊕ インストール</button>
       </div>
     </header>
 
@@ -45,22 +45,22 @@
     <div class="stats-bar">
       <div class="stat">
         <span class="stat-num" id="totalCount">0</span>
-        <span class="stat-label">TOTAL</span>
+        <span class="stat-label">合計</span>
       </div>
       <div class="stat-divider"></div>
       <div class="stat">
         <span class="stat-num" id="pendingCount">0</span>
-        <span class="stat-label">PENDING</span>
+        <span class="stat-label">未完了</span>
       </div>
       <div class="stat-divider"></div>
       <div class="stat">
         <span class="stat-num" id="doneCount">0</span>
-        <span class="stat-label">DONE</span>
+        <span class="stat-label">完了</span>
       </div>
       <div class="stat-divider"></div>
       <div class="stat">
         <span class="stat-num overdue-num" id="overdueCount">0</span>
-        <span class="stat-label overdue-label">OVERDUE</span>
+        <span class="stat-label overdue-label">期限超過</span>
       </div>
       <div class="progress-wrap">
         <div class="progress-bar">
@@ -103,12 +103,12 @@
           autocomplete="off"
         />
         <select id="prioritySelect" class="priority-select">
-          <option value="high">● HIGH</option>
-          <option value="medium" selected>● MED</option>
-          <option value="low">● LOW</option>
+          <option value="high">● 高</option>
+          <option value="medium" selected>● 中</option>
+          <option value="low">● 低</option>
         </select>
-        <button id="expandInputBtn" class="expand-input-btn" title="期限・繰り返し・メモ">▾ 詳細</button>
-        <button id="addBtn" class="add-btn">ADD <span class="add-shortcut">↵</span></button>
+        <button id="expandInputBtn" class="expand-input-btn" title="期限・繰り返し・メモ">▾ 詳細を開く</button>
+        <button id="addBtn" class="add-btn">追加 <span class="add-shortcut">↵</span></button>
       </div>
 
       <!-- Expandable extra options -->
@@ -148,14 +148,14 @@
 
     <!-- ── Filters ── -->
     <div class="filter-bar">
-      <button class="filter-btn active" data-filter="all">ALL</button>
-      <button class="filter-btn" data-filter="pending">PENDING</button>
-      <button class="filter-btn" data-filter="done">DONE</button>
-      <button class="filter-btn" data-filter="overdue">OVERDUE</button>
-      <button class="filter-btn" data-filter="recurring">RECURRING</button>
+      <button class="filter-btn active" data-filter="all">すべて</button>
+      <button class="filter-btn" data-filter="pending">未完了</button>
+      <button class="filter-btn" data-filter="done">完了済み</button>
+      <button class="filter-btn" data-filter="overdue">期限超過</button>
+      <button class="filter-btn" data-filter="recurring">繰り返し</button>
       <div class="filter-actions">
-        <button id="clearDoneBtn" class="action-btn">CLEAR DONE</button>
-        <button id="resetAllBtn" class="action-btn danger">RESET ALL</button>
+        <button id="clearDoneBtn" class="action-btn">完了済みを削除</button>
+        <button id="resetAllBtn" class="action-btn danger">全てリセット</button>
       </div>
     </div>
 
@@ -186,7 +186,7 @@
   <div class="modal-overlay" id="modalOverlay">
     <div class="modal">
       <div class="modal-header">
-        <span class="modal-title">EDIT TASK</span>
+        <span class="modal-title">タスクを編集</span>
         <button class="modal-close" id="modalClose">✕</button>
       </div>
       <input type="text" id="editInput" class="modal-input" maxlength="120" />
@@ -194,9 +194,9 @@
         <div class="modal-field">
           <label class="extra-label">優先度</label>
           <select id="editPriority" class="priority-select full-width">
-            <option value="high">● HIGH</option>
-            <option value="medium">● MED</option>
-            <option value="low">● LOW</option>
+            <option value="high">● 高</option>
+            <option value="medium">● 中</option>
+            <option value="low">● 低</option>
           </select>
         </div>
         <div class="modal-field">
@@ -223,8 +223,8 @@
         <textarea id="editNotes" class="extra-textarea" rows="3" maxlength="400"></textarea>
       </div>
       <div class="modal-actions">
-        <button id="saveEditBtn" class="add-btn">SAVE</button>
-        <button id="cancelEditBtn" class="action-btn">CANCEL</button>
+        <button id="saveEditBtn" class="add-btn">保存</button>
+        <button id="cancelEditBtn" class="action-btn">キャンセル</button>
       </div>
     </div>
   </div>
