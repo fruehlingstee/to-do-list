@@ -1,81 +1,91 @@
 /* ===========================
-   TASKS v2 — app.js
-   All features:
-   ・期限日   ・検索
-   ・並び替え ・サブタスク
-   ・繰り返し ・メモ
-   ・PWA
+   TASKS v3 — app.js
+   完全日本語版 + 繰り返し強化
    =========================== */
 
 // ─────────────────────────────────────────────────────
-// State
+// 状態
 // ─────────────────────────────────────────────────────
 
-let tasks         = [];
-let filter        = 'all';
-let autoReset     = false;
-let editTarget    = null;
+let tasks          = [];
+let filter         = 'all';
+let autoReset      = false;
+let editTarget     = null;
 let autoResetTimer = null;
-let dragSrcIndex  = null;
-const expandedTasks = new Set(); // task IDs with subtasks expanded
+let dragSrcIndex   = null;
+let lastResetDate  = null;
+const expandedTasks = new Set();
 
-const STORAGE_KEY  = 'tasks_v2';
-const SETTINGS_KEY = 'tasks_settings_v2';
+const STORAGE_KEY  = 'tasks_v3';
+const SETTINGS_KEY = 'tasks_settings_v3';
 
-let lastResetDate = null; // 'YYYY-MM-DD' 形式で最後にリセットした日付を保存
+// 優先度ラベル
+const PRIORITY_LABEL = { high: '高', medium: '中', low: '低' };
+
+// 繰り返しラベル
+const INTERVAL_LABEL = {
+  daily:      '毎日',
+  every2days: '2日に1回',
+  every3days: '3日に1回',
+  weekdays:   '曜日指定',
+  monthly:    '毎月1日'
+};
+
+const DAY_NAMES = ['日', '月', '火', '水', '木', '金', '土'];
 
 // ─────────────────────────────────────────────────────
-// DOM refs
+// DOM参照
 // ─────────────────────────────────────────────────────
 
 const $ = id => document.getElementById(id);
 
-const taskInput        = $('taskInput');
-const prioritySelect   = $('prioritySelect');
-const expandInputBtn   = $('expandInputBtn');
-const inputExtra       = $('inputExtra');
-const dueDateInput     = $('dueDateInput');
-const recurringToggle  = $('recurringToggle');
-const recurringInterval= $('recurringInterval');
-const notesInput       = $('notesInput');
-const addBtn           = $('addBtn');
-const taskList         = $('taskList');
-const emptyState       = $('emptyState');
-const emptyMsg         = $('emptyMsg');
-const emptySubMsg      = $('emptySubMsg');
-const autoResetToggle  = $('autoResetToggle');
-const autoInfo         = $('autoInfo');
-const nextResetTime    = $('nextResetTime');
-const clearDoneBtn     = $('clearDoneBtn');
-const resetAllBtn      = $('resetAllBtn');
-const filterBtns       = document.querySelectorAll('.filter-btn');
-const totalCount       = $('totalCount');
-const pendingCount     = $('pendingCount');
-const doneCount        = $('doneCount');
-const overdueCount     = $('overdueCount');
-const progressFill     = $('progressFill');
-const lastSaved        = $('lastSaved');
-const searchInput      = $('searchInput');
-const clearSearch      = $('clearSearch');
-const sortSelect       = $('sortSelect');
-const modalOverlay     = $('modalOverlay');
-const editInput        = $('editInput');
-const editPriority     = $('editPriority');
-const editDueDate      = $('editDueDate');
-const editRecurring    = $('editRecurring');
-const editRecurringInt = $('editRecurringInterval');
-const editNotes        = $('editNotes');
-const saveEditBtn      = $('saveEditBtn');
-const cancelEditBtn    = $('cancelEditBtn');
-const modalClose       = $('modalClose');
-const pwaInstallBtn    = $('pwaInstallBtn');
+const taskInput         = $('taskInput');
+const prioritySelect    = $('prioritySelect');
+const expandInputBtn    = $('expandInputBtn');
+const inputExtra        = $('inputExtra');
+const dueDateInput      = $('dueDateInput');
+const recurringToggle   = $('recurringToggle');
+const recurringInterval = $('recurringInterval');
+const weekdayPicker     = $('weekdayPicker');
+const notesInput        = $('notesInput');
+const addBtn            = $('addBtn');
+const taskList          = $('taskList');
+const emptyState        = $('emptyState');
+const emptyMsg          = $('emptyMsg');
+const emptySubMsg       = $('emptySubMsg');
+const autoResetToggle   = $('autoResetToggle');
+const autoInfo          = $('autoInfo');
+const nextResetTime     = $('nextResetTime');
+const clearDoneBtn      = $('clearDoneBtn');
+const resetAllBtn       = $('resetAllBtn');
+const filterBtns        = document.querySelectorAll('.filter-btn');
+const totalCount        = $('totalCount');
+const pendingCount      = $('pendingCount');
+const doneCount         = $('doneCount');
+const overdueCount      = $('overdueCount');
+const progressFill      = $('progressFill');
+const lastSaved         = $('lastSaved');
+const searchInput       = $('searchInput');
+const clearSearch       = $('clearSearch');
+const sortSelect        = $('sortSelect');
+const modalOverlay      = $('modalOverlay');
+const editInput         = $('editInput');
+const editPriority      = $('editPriority');
+const editDueDate       = $('editDueDate');
+const editRecurring     = $('editRecurring');
+const editRecurringInt  = $('editRecurringInterval');
+const editWeekdayPicker = $('editWeekdayPicker');
+const editNotes         = $('editNotes');
+const saveEditBtn       = $('saveEditBtn');
+const cancelEditBtn     = $('cancelEditBtn');
+const modalClose        = $('modalClose');
+const pwaInstallBtn     = $('pwaInstallBtn');
 
 // ─────────────────────────────────────────────────────
-// Helpers
+// ユーティリティ
 // ─────────────────────────────────────────────────────
 
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
-
 function getTodayStr() { return new Date().toISOString().slice(0, 10); }
 
 function getDueStatus(dueDate) {
@@ -86,69 +96,80 @@ function getDueStatus(dueDate) {
   return 'future';
 }
 
-function formatDueDate(dueDate) {
-  const [, m, d] = dueDate.split('-');
-  return `${m}/${d}`;
-}
-
 function getDueLabelText(dueDate) {
   const s = getDueStatus(dueDate);
-  if (s === 'today') return '今日';
+  const [, m, d] = dueDate.split('-');
+  if (s === 'today')   return '今日';
   if (s === 'overdue') {
     const diff = Math.floor((new Date(getTodayStr()) - new Date(dueDate)) / 86400000);
     return diff === 1 ? '昨日' : `${diff}日超過`;
   }
-  return formatDueDate(dueDate);
+  return `${m}/${d}`;
 }
 
-function getRecurringLabel(interval) {
-  return { daily: '毎日', weekly: '毎週月曜', monthly: '毎月1日' }[interval] || interval;
+// 曜日の選択状態を取得（チェックされた value の配列）
+function getSelectedDays(picker) {
+  return Array.from(picker.querySelectorAll('input[type="checkbox"]:checked'))
+    .map(cb => parseInt(cb.value));
+}
+
+// 曜日ボタンの選択状態をUIに反映
+function applySelectedDays(picker, days) {
+  picker.querySelectorAll('.weekday-btn').forEach(btn => {
+    const day = parseInt(btn.dataset.day);
+    const cb  = btn.querySelector('input[type="checkbox"]');
+    const isSelected = days.includes(day);
+    cb.checked = isSelected;
+    btn.classList.toggle('selected', isSelected);
+  });
 }
 
 // ─────────────────────────────────────────────────────
-// Storage
+// ストレージ
 // ─────────────────────────────────────────────────────
 
 function save() {
   localStorage.setItem(STORAGE_KEY,  JSON.stringify(tasks));
   localStorage.setItem(SETTINGS_KEY, JSON.stringify({ autoReset, lastResetDate }));
   const now = new Date();
-  lastSaved.textContent = `saved ${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`;
+  const hms = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+  lastSaved.textContent = `保存済み ${hms}`;
 }
+
+function pad(n) { return n.toString().padStart(2, '0'); }
 
 function loadFromStorage() {
   const rawTasks    = localStorage.getItem(STORAGE_KEY);
   const rawSettings = localStorage.getItem(SETTINGS_KEY);
   if (rawTasks) {
-    try {
-      const parsed = JSON.parse(rawTasks);
-      tasks = parsed.map(migrateTask);
-    } catch { tasks = []; }
+    try { tasks = JSON.parse(rawTasks).map(migrateTask); }
+    catch { tasks = []; }
   }
   if (rawSettings) {
     try {
       const s = JSON.parse(rawSettings);
-      autoReset = s.autoReset ?? false;
+      autoReset     = s.autoReset     ?? false;
       lastResetDate = s.lastResetDate ?? null;
       autoResetToggle.checked = autoReset;
     } catch {}
   }
 }
 
-/** Add missing fields to tasks saved by v1 */
 function migrateTask(t) {
   return {
     dueDate:           null,
     notes:             '',
     recurring:         false,
     recurringInterval: 'daily',
+    recurringDays:     [],   // 曜日指定用: [0-6]の配列
+    lastResetDate:     null, // タスク個別の最終リセット日
     subtasks:          [],
     ...t
   };
 }
 
 // ─────────────────────────────────────────────────────
-// Task CRUD
+// タスク操作
 // ─────────────────────────────────────────────────────
 
 function addTask() {
@@ -165,6 +186,10 @@ function addTask() {
     notes:             notesInput.value.trim(),
     recurring:         recurringToggle.checked,
     recurringInterval: recurringInterval.value,
+    recurringDays:     recurringToggle.checked && recurringInterval.value === 'weekdays'
+                         ? getSelectedDays(weekdayPicker)
+                         : [],
+    lastResetDate:     null,
     subtasks:          []
   };
 
@@ -172,12 +197,12 @@ function addTask() {
   save();
   render();
 
-  // Reset inputs
-  taskInput.value   = '';
-  dueDateInput.value= '';
-  notesInput.value  = '';
+  // 入力リセット
+  taskInput.value    = '';
+  dueDateInput.value = '';
+  notesInput.value   = '';
   recurringToggle.checked = false;
-  syncRecurringInterval(recurringToggle, recurringInterval);
+  syncRecurringUI(recurringToggle, recurringInterval, weekdayPicker);
   taskInput.focus();
   showToast('タスクを追加しました', 'success');
 }
@@ -186,29 +211,28 @@ function toggleTask(id) {
   const t = tasks.find(t => t.id === id);
   if (!t) return;
   t.done = !t.done;
-  save();
-  render();
+  save(); render();
 }
 
 function deleteTask(id) {
   tasks = tasks.filter(t => t.id !== id);
   expandedTasks.delete(id);
-  save();
-  render();
-  showToast('削除しました');
+  save(); render();
+  showToast('タスクを削除しました');
 }
 
 function openEditModal(id) {
   const t = tasks.find(t => t.id === id);
   if (!t) return;
   editTarget = id;
-  editInput.value            = t.text;
-  editPriority.value         = t.priority;
-  editDueDate.value          = t.dueDate || '';
-  editRecurring.checked      = t.recurring;
-  editRecurringInt.value     = t.recurringInterval;
-  editNotes.value            = t.notes || '';
-  syncRecurringInterval(editRecurring, editRecurringInt);
+  editInput.value           = t.text;
+  editPriority.value        = t.priority;
+  editDueDate.value         = t.dueDate || '';
+  editRecurring.checked     = t.recurring;
+  editRecurringInt.value    = t.recurringInterval;
+  editNotes.value           = t.notes || '';
+  applySelectedDays(editWeekdayPicker, t.recurringDays || []);
+  syncRecurringUI(editRecurring, editRecurringInt, editWeekdayPicker);
   modalOverlay.classList.add('open');
   editInput.focus(); editInput.select();
 }
@@ -223,9 +247,11 @@ function saveEdit() {
   t.dueDate          = editDueDate.value || null;
   t.recurring        = editRecurring.checked;
   t.recurringInterval= editRecurringInt.value;
+  t.recurringDays    = editRecurring.checked && editRecurringInt.value === 'weekdays'
+                         ? getSelectedDays(editWeekdayPicker)
+                         : [];
   t.notes            = editNotes.value.trim();
-  save();
-  render();
+  save(); render();
   closeModal();
   showToast('タスクを更新しました', 'success');
 }
@@ -253,7 +279,7 @@ function resetAll() {
 }
 
 // ─────────────────────────────────────────────────────
-// Subtask CRUD
+// サブタスク
 // ─────────────────────────────────────────────────────
 
 function addSubtask(taskId, text) {
@@ -266,33 +292,31 @@ function addSubtask(taskId, text) {
   return true;
 }
 
-function toggleSubtask(taskId, subtaskId) {
+function toggleSubtask(taskId, subId) {
   const t = tasks.find(t => t.id === taskId);
   if (!t) return;
-  const s = t.subtasks.find(s => s.id === subtaskId);
+  const s = t.subtasks.find(s => s.id === subId);
   if (!s) return;
   s.done = !s.done;
   save(); render();
 }
 
-function deleteSubtask(taskId, subtaskId) {
+function deleteSubtask(taskId, subId) {
   const t = tasks.find(t => t.id === taskId);
   if (!t) return;
-  t.subtasks = t.subtasks.filter(s => s.id !== subtaskId);
+  t.subtasks = t.subtasks.filter(s => s.id !== subId);
   save(); render();
 }
 
 // ─────────────────────────────────────────────────────
-// Filtering / Sorting
+// フィルター・並び替え
 // ─────────────────────────────────────────────────────
 
 function getVisibleTasks() {
   const query = searchInput.value.trim().toLowerCase();
   const today = getTodayStr();
-
   let result = [...tasks];
 
-  // Search
   if (query) {
     result = result.filter(t =>
       t.text.toLowerCase().includes(query) ||
@@ -301,7 +325,6 @@ function getVisibleTasks() {
     );
   }
 
-  // Tab filter
   switch (filter) {
     case 'done':      result = result.filter(t => t.done); break;
     case 'pending':   result = result.filter(t => !t.done); break;
@@ -315,8 +338,8 @@ function getVisibleTasks() {
 function sortTasks(arr) {
   const s = sortSelect.value;
   if (s === 'default') return arr;
-  const copy = [...arr];
-  const pOrder = { high: 0, medium: 1, low: 2 };
+  const copy    = [...arr];
+  const pOrder  = { high: 0, medium: 1, low: 2 };
   switch (s) {
     case 'priority': return copy.sort((a, b) => pOrder[a.priority] - pOrder[b.priority]);
     case 'dueDate':
@@ -333,26 +356,60 @@ function sortTasks(arr) {
 }
 
 // ─────────────────────────────────────────────────────
-// Auto Reset
+// 繰り返しリセットロジック
 // ─────────────────────────────────────────────────────
 
 function shouldResetToday(task) {
   if (!task.recurring) return false;
   const now = new Date();
+  const today = getTodayStr();
+
+  // 既に今日リセット済みならスキップ
+  if (task.lastResetDate === today) return false;
+
   switch (task.recurringInterval) {
-    case 'daily':   return true;
-    case 'weekly':  return now.getDay() === 1;   // Monday
-    case 'monthly': return now.getDate() === 1;  // 1st of month
-    default:        return true;
+    case 'daily':
+      return true;
+
+    case 'every2days': {
+      // 基準日からの経過日数が2の倍数
+      const base = new Date(task.createdAt || task.lastResetDate || today);
+      base.setHours(0,0,0,0);
+      const diff = Math.floor((new Date(today) - base) / 86400000);
+      return diff % 2 === 0;
+    }
+
+    case 'every3days': {
+      const base = new Date(task.createdAt || task.lastResetDate || today);
+      base.setHours(0,0,0,0);
+      const diff = Math.floor((new Date(today) - base) / 86400000);
+      return diff % 3 === 0;
+    }
+
+    case 'weekdays': {
+      const todayDay = now.getDay();
+      const days = task.recurringDays || [];
+      return days.includes(todayDay);
+    }
+
+    case 'monthly':
+      return now.getDate() === 1;
+
+    default:
+      return true;
   }
 }
 
 function runAutoReset(silent = false) {
   let n = 0;
+  const today = getTodayStr();
   tasks.forEach(t => {
-    if (shouldResetToday(t) && t.done) { t.done = false; n++; }
+    if (shouldResetToday(t)) {
+      if (t.done) { t.done = false; n++; }
+      t.lastResetDate = today;
+    }
   });
-  lastResetDate = getTodayStr();
+  lastResetDate = today;
   save();
   if (n > 0) {
     render();
@@ -361,15 +418,11 @@ function runAutoReset(silent = false) {
   scheduleAutoReset();
 }
 
-/**
- * ページを開いたとき、前回リセット日が今日より前なら
- * （＝ページを閉じていてmidnightをまたいでいたなら）即座にリセット実行
- */
 function checkMissedReset() {
   if (!autoReset) return;
   const today = getTodayStr();
   if (lastResetDate !== today) {
-    runAutoReset(true); // silentモード：トーストは出さずにリセット
+    runAutoReset(true);
   }
 }
 
@@ -391,7 +444,33 @@ function updateAutoInfo() {
 }
 
 // ─────────────────────────────────────────────────────
-// Render
+// 繰り返しUIの同期
+// ─────────────────────────────────────────────────────
+
+function syncRecurringUI(toggle, select, picker) {
+  const on = toggle.checked;
+  select.disabled = !on;
+  select.style.opacity = on ? '1' : '0.4';
+  // 曜日ピッカーの表示切替
+  const showPicker = on && select.value === 'weekdays';
+  picker.style.display = showPicker ? 'flex' : 'none';
+}
+
+// ─────────────────────────────────────────────────────
+// 繰り返しラベル生成
+// ─────────────────────────────────────────────────────
+
+function getRecurringDisplayLabel(task) {
+  const base = INTERVAL_LABEL[task.recurringInterval] || task.recurringInterval;
+  if (task.recurringInterval === 'weekdays' && task.recurringDays && task.recurringDays.length > 0) {
+    const names = task.recurringDays.sort((a,b)=>a-b).map(d => DAY_NAMES[d]).join('・');
+    return `毎週 ${names}`;
+  }
+  return base;
+}
+
+// ─────────────────────────────────────────────────────
+// レンダリング
 // ─────────────────────────────────────────────────────
 
 function render() {
@@ -405,10 +484,8 @@ function render() {
   doneCount.textContent    = done;
   pendingCount.textContent = pending;
   overdueCount.textContent = overdue;
-  progressFill.style.width = total > 0 ? `${Math.round((done / total) * 100)}%` : '0%';
-
-  // Update overdue badge color
   overdueCount.style.color = overdue > 0 ? 'var(--red)' : 'var(--text-muted)';
+  progressFill.style.width = total > 0 ? `${Math.round((done / total) * 100)}%` : '0%';
 
   const visible = getVisibleTasks();
   taskList.innerHTML = '';
@@ -438,8 +515,15 @@ function render() {
 }
 
 // ─────────────────────────────────────────────────────
-// Build task item
+// タスクアイテム構築
 // ─────────────────────────────────────────────────────
+
+function el(tag, cls = '', txt = '') {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (txt) e.textContent = txt;
+  return e;
+}
 
 function buildTaskItem(task) {
   const today     = getTodayStr();
@@ -447,83 +531,70 @@ function buildTaskItem(task) {
   const isOverdue = dueStatus === 'overdue' && !task.done;
 
   const li = document.createElement('li');
-  li.className = [
-    'task-item',
-    task.done    ? 'done'    : '',
-    isOverdue    ? 'overdue' : ''
-  ].filter(Boolean).join(' ');
+  li.className = ['task-item', task.done ? 'done' : '', isOverdue ? 'overdue' : ''].filter(Boolean).join(' ');
   li.dataset.id = task.id;
   li.draggable  = true;
 
-  // ── Main row
-  const main = document.createElement('div');
-  main.className = 'task-main';
+  // メイン行
+  const main = el('div', 'task-main');
 
-  // Priority dot
   const dot = el('span', `priority-dot ${task.priority}`);
 
-  // Checkbox
   const check = document.createElement('input');
   check.type = 'checkbox'; check.className = 'task-check'; check.checked = task.done;
   check.addEventListener('change', () => toggleTask(task.id));
 
-  // Text
   const text = el('span', 'task-text', task.text);
+  main.append(dot, check, text);
 
-  // Due badge
+  // 期限バッジ
   if (task.dueDate) {
     const badge = el('span', `due-badge ${dueStatus}`);
     badge.textContent = getDueLabelText(task.dueDate);
-    badge.title       = task.dueDate;
-    main.append(dot, check, text, badge);
-  } else {
-    main.append(dot, check, text);
+    badge.title = task.dueDate;
+    main.appendChild(badge);
   }
 
-  // Recurring icon
+  // 繰り返しアイコン
   if (task.recurring) {
-    const ri = el('span', 'recurring-icon');
-    ri.textContent = '↻';
-    ri.title       = `繰り返し: ${getRecurringLabel(task.recurringInterval)}`;
+    const ri = el('span', 'recurring-icon', '↻');
+    ri.title = `繰り返し: ${getRecurringDisplayLabel(task)}`;
     main.appendChild(ri);
   }
 
-  const priorityLabels = { high: '高', medium: '中', low: '低' };
-  const badge = el('span', `priority-badge ${task.priority}`);
-  badge.textContent = priorityLabels[task.priority] || task.priority;
-  main.appendChild(badge);
+  // 優先度バッジ
+  const pbadge = el('span', `priority-badge ${task.priority}`, PRIORITY_LABEL[task.priority] || task.priority);
+  main.appendChild(pbadge);
 
-  // Actions
+  // アクションボタン
   const actions = el('div', 'task-actions');
-
-  const editBtn = el('button', 'task-action-btn'); editBtn.title = '編集'; editBtn.textContent = '✎';
+  const editBtn = el('button', 'task-action-btn');
+  editBtn.title = '編集'; editBtn.textContent = '✎';
   editBtn.addEventListener('click', () => openEditModal(task.id));
-
-  const delBtn = el('button', 'task-action-btn delete'); delBtn.title = '削除'; delBtn.textContent = '✕';
+  const delBtn = el('button', 'task-action-btn delete');
+  delBtn.title = '削除'; delBtn.textContent = '✕';
   delBtn.addEventListener('click', () => deleteTask(task.id));
-
   actions.append(editBtn, delBtn);
   main.appendChild(actions);
 
-  // Drag handle
-  const handle = el('span', 'drag-handle');
-  handle.textContent = '⋮⋮'; handle.title = 'ドラッグして並び替え';
+  // ドラッグハンドル
+  const handle = el('span', 'drag-handle', '⋮⋮');
+  handle.title = 'ドラッグで並び替え';
   main.appendChild(handle);
 
   li.appendChild(main);
 
-  // ── Notes
+  // メモ
   if (task.notes) {
-    const notesArea = el('div', 'task-notes-area');
-    notesArea.append(el('span', 'notes-prefix', '✎'), el('p', 'task-notes-text', task.notes));
-    li.appendChild(notesArea);
+    const na = el('div', 'task-notes-area');
+    na.append(el('span', 'notes-prefix', '✎'), el('p', 'task-notes-text', task.notes));
+    li.appendChild(na);
   }
 
-  // ── Subtasks
-  const sub = buildSubtaskSection(task);
-  li.appendChild(sub);
+  // サブタスク
+  li.appendChild(buildSubtaskSection(task));
 
-  // ── Drag events
+  // ドラッグイベント
   li.addEventListener('dragstart', onDragStart);
   li.addEventListener('dragover',  onDragOver);
   li.addEventListener('dragleave', onDragLeave);
@@ -539,138 +610,86 @@ function buildSubtaskSection(task) {
   const total   = task.subtasks.length;
   const done    = task.subtasks.filter(s => s.done).length;
 
-  // Toggle button
-  const toggleBtn = el('button', 'subtask-toggle-btn');
   const arrow = total > 0 ? (isOpen ? '▾' : '▸') : '▸';
-  toggleBtn.textContent = total > 0
-    ? `${arrow} サブタスク ${done}/${total}`
-    : `${arrow} サブタスク追加`;
+  const label = total > 0 ? `${arrow} サブタスク ${done}/${total}` : `${arrow} サブタスクを追加`;
+  const toggleBtn = el('button', 'subtask-toggle-btn', label);
   toggleBtn.addEventListener('click', () => {
-    if (expandedTasks.has(task.id)) expandedTasks.delete(task.id);
-    else expandedTasks.add(task.id);
+    expandedTasks.has(task.id) ? expandedTasks.delete(task.id) : expandedTasks.add(task.id);
     render();
   });
   section.appendChild(toggleBtn);
 
-  // Collapsible area
   const area = el('div', `subtask-area${isOpen ? ' open' : ''}`);
 
-  // Subtask list
   if (total > 0) {
     const ul = el('ul', 'subtask-list');
     task.subtasks.forEach(s => {
       const sli = el('li', `subtask-item${s.done ? ' done' : ''}`);
-
       const sc = document.createElement('input');
       sc.type = 'checkbox'; sc.className = 'subtask-check'; sc.checked = s.done;
       sc.addEventListener('change', () => toggleSubtask(task.id, s.id));
-
-      const st = el('span', 'subtask-text', s.text);
-
-      const sd = el('button', 'subtask-del-btn');
-      sd.textContent = '✕'; sd.title = 'サブタスクを削除';
+      const st  = el('span', 'subtask-text', s.text);
+      const sd  = el('button', 'subtask-del-btn', '✕');
+      sd.title = 'サブタスクを削除';
       sd.addEventListener('click', () => deleteSubtask(task.id, s.id));
-
       sli.append(sc, st, sd);
       ul.appendChild(sli);
     });
     area.appendChild(ul);
   }
 
-  // Add row
+  // サブタスク追加行
   const addRow = el('div', 'subtask-add-row');
-  const input  = el('input', 'subtask-input');
-  input.type        = 'text';
-  input.placeholder = 'サブタスクを追加... (Enter)';
-  input.maxLength   = 100;
+  const inp    = el('input', 'subtask-input');
+  inp.type = 'text'; inp.placeholder = 'サブタスクを追加... (Enter)'; inp.maxLength = 100;
+  const addBtn2 = el('button', 'subtask-add-confirm', '+');
+  addBtn2.title = '追加';
 
-  const addSubBtn = el('button', 'subtask-add-confirm');
-  addSubBtn.textContent = '+'; addSubBtn.title = '追加';
-
-  function submitSubtask() {
-    if (addSubtask(task.id, input.value)) {
-      expandedTasks.add(task.id); // keep open
-    }
+  function submit() {
+    if (addSubtask(task.id, inp.value)) expandedTasks.add(task.id);
   }
-
-  input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); submitSubtask(); } });
-  addSubBtn.addEventListener('click', submitSubtask);
-
-  addRow.append(input, addSubBtn);
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); submit(); } });
+  addBtn2.addEventListener('click', submit);
+  addRow.append(inp, addBtn2);
   area.appendChild(addRow);
   section.appendChild(area);
 
   return section;
 }
 
-// Tiny element factory
-function el(tag, className = '', text = '') {
-  const e = document.createElement(tag);
-  if (className) e.className = className;
-  if (text)      e.textContent = text;
-  return e;
-}
-
 // ─────────────────────────────────────────────────────
-// Drag & Drop
+// ドラッグ＆ドロップ
 // ─────────────────────────────────────────────────────
 
-function taskIndexById(id) { return tasks.findIndex(t => t.id === id); }
+function idxById(id) { return tasks.findIndex(t => t.id === id); }
 
-function onDragStart(e) {
-  dragSrcIndex = taskIndexById(this.dataset.id);
-  this.classList.add('dragging');
-  e.dataTransfer.effectAllowed = 'move';
-}
-
-function onDragOver(e) {
-  e.preventDefault();
-  e.dataTransfer.dropEffect = 'move';
-  this.classList.add('drag-over');
-}
-
-function onDragLeave() { this.classList.remove('drag-over'); }
+function onDragStart(e) { dragSrcIndex = idxById(this.dataset.id); this.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; }
+function onDragOver(e)  { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; this.classList.add('drag-over'); }
+function onDragLeave()  { this.classList.remove('drag-over'); }
+function onDragEnd()    { this.classList.remove('dragging'); document.querySelectorAll('.drag-over').forEach(e => e.classList.remove('drag-over')); dragSrcIndex = null; }
 
 function onDrop(e) {
-  e.preventDefault();
-  this.classList.remove('drag-over');
-  const targetIdx = taskIndexById(this.dataset.id);
-  if (dragSrcIndex === null || dragSrcIndex === targetIdx) return;
+  e.preventDefault(); this.classList.remove('drag-over');
+  const ti = idxById(this.dataset.id);
+  if (dragSrcIndex === null || dragSrcIndex === ti) return;
   const [moved] = tasks.splice(dragSrcIndex, 1);
-  tasks.splice(targetIdx, 0, moved);
+  tasks.splice(ti, 0, moved);
   save(); render();
 }
 
-function onDragEnd() {
-  this.classList.remove('dragging');
-  document.querySelectorAll('.drag-over').forEach(e => e.classList.remove('drag-over'));
-  dragSrcIndex = null;
-}
-
 // ─────────────────────────────────────────────────────
-// Toast
+// トースト
 // ─────────────────────────────────────────────────────
 
 let toastTimer = null;
-
 function showToast(msg, type = '') {
-  let toast = document.querySelector('.toast');
-  if (!toast) { toast = document.createElement('div'); toast.className = 'toast'; document.body.appendChild(toast); }
+  let t = document.querySelector('.toast');
+  if (!t) { t = document.createElement('div'); t.className = 'toast'; document.body.appendChild(t); }
   if (toastTimer) clearTimeout(toastTimer);
-  toast.textContent = msg;
-  toast.className   = `toast${type ? ' ' + type : ''}`;
-  requestAnimationFrame(() => toast.classList.add('show'));
-  toastTimer = setTimeout(() => toast.classList.remove('show'), 2400);
-}
-
-// ─────────────────────────────────────────────────────
-// Recurring interval sync helper
-// ─────────────────────────────────────────────────────
-
-function syncRecurringInterval(toggle, select) {
-  select.disabled = !toggle.checked;
-  if (!toggle.checked) select.style.opacity = '0.4';
-  else                  select.style.opacity = '1';
+  t.textContent = msg;
+  t.className   = `toast${type ? ' ' + type : ''}`;
+  requestAnimationFrame(() => t.classList.add('show'));
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2400);
 }
 
 // ─────────────────────────────────────────────────────
@@ -682,51 +701,67 @@ let deferredInstall = null;
 function registerServiceWorker() {
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('sw.js').catch(err => {
-        console.warn('[SW] Registration failed:', err);
-      });
+      navigator.serviceWorker.register('sw.js').catch(err => console.warn('[SW]', err));
     });
   }
 }
 
 // ─────────────────────────────────────────────────────
-// Event bindings
+// 曜日ピッカーのクリックイベント設定
+// ─────────────────────────────────────────────────────
+
+function setupWeekdayPicker(picker) {
+  picker.querySelectorAll('.weekday-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.preventDefault();
+      const cb = btn.querySelector('input[type="checkbox"]');
+      cb.checked = !cb.checked;
+      btn.classList.toggle('selected', cb.checked);
+    });
+  });
+}
+
+// ─────────────────────────────────────────────────────
+// イベントバインディング
 // ─────────────────────────────────────────────────────
 
 function bindEvents() {
-  // Add task
+  // タスク追加
   addBtn.addEventListener('click', addTask);
   taskInput.addEventListener('keydown', e => { if (e.key === 'Enter') addTask(); });
 
-  // Expand input panel
+  // 詳細パネル開閉
   expandInputBtn.addEventListener('click', () => {
     const isOpen = inputExtra.classList.toggle('open');
     expandInputBtn.classList.toggle('active', isOpen);
     expandInputBtn.textContent = isOpen ? '▴ 詳細を閉じる' : '▾ 詳細を開く';
   });
 
-  // Recurring toggle sync (add form)
-  recurringToggle.addEventListener('change', () => syncRecurringInterval(recurringToggle, recurringInterval));
+  // 繰り返しトグル（追加フォーム）
+  recurringToggle.addEventListener('change', () => syncRecurringUI(recurringToggle, recurringInterval, weekdayPicker));
+  recurringInterval.addEventListener('change', () => syncRecurringUI(recurringToggle, recurringInterval, weekdayPicker));
 
-  // Recurring toggle sync (edit modal)
-  editRecurring.addEventListener('change', () => syncRecurringInterval(editRecurring, editRecurringInt));
+  // 繰り返しトグル（編集モーダル）
+  editRecurring.addEventListener('change', () => syncRecurringUI(editRecurring, editRecurringInt, editWeekdayPicker));
+  editRecurringInt.addEventListener('change', () => syncRecurringUI(editRecurring, editRecurringInt, editWeekdayPicker));
 
-  // Search
+  // 曜日ピッカー
+  setupWeekdayPicker(weekdayPicker);
+  setupWeekdayPicker(editWeekdayPicker);
+
+  // 検索
   searchInput.addEventListener('input', () => {
     clearSearch.style.display = searchInput.value ? 'block' : 'none';
     render();
   });
   clearSearch.addEventListener('click', () => {
-    searchInput.value = '';
-    clearSearch.style.display = 'none';
-    render();
-    searchInput.focus();
+    searchInput.value = ''; clearSearch.style.display = 'none'; render(); searchInput.focus();
   });
 
-  // Sort
+  // 並び替え
   sortSelect.addEventListener('change', render);
 
-  // Filters
+  // フィルター
   filterBtns.forEach(btn => {
     btn.addEventListener('click', () => {
       filter = btn.dataset.filter;
@@ -736,11 +771,11 @@ function bindEvents() {
     });
   });
 
-  // Bulk actions
+  // 一括操作
   clearDoneBtn.addEventListener('click', clearDone);
   resetAllBtn.addEventListener('click',  resetAll);
 
-  // Auto reset toggle
+  // 自動リセットトグル
   autoResetToggle.addEventListener('change', () => {
     autoReset = autoResetToggle.checked;
     if (autoReset) {
@@ -750,10 +785,10 @@ function bindEvents() {
       autoResetTimer = null;
     }
     updateAutoInfo(); save();
-    showToast(autoReset ? '自動リセット ON（繰り返しタスク対象）' : '手動リセット に切替', 'success');
+    showToast(autoReset ? '自動リセット ON（繰り返しタスク対象）' : '手動リセットに切り替えました', 'success');
   });
 
-  // Modal
+  // モーダル
   saveEditBtn.addEventListener('click',   saveEdit);
   cancelEditBtn.addEventListener('click', closeModal);
   modalClose.addEventListener('click',    closeModal);
@@ -761,38 +796,29 @@ function bindEvents() {
   editInput.addEventListener('keydown', e => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') closeModal(); });
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && modalOverlay.classList.contains('open')) closeModal(); });
 
-  // PWA install prompt
+  // PWAインストール
   window.addEventListener('beforeinstallprompt', e => {
-    e.preventDefault();
-    deferredInstall = e;
-    pwaInstallBtn.style.display = 'block';
+    e.preventDefault(); deferredInstall = e; pwaInstallBtn.style.display = 'block';
   });
-
   pwaInstallBtn.addEventListener('click', async () => {
     if (!deferredInstall) return;
     deferredInstall.prompt();
     const { outcome } = await deferredInstall.userChoice;
-    if (outcome === 'accepted') {
-      pwaInstallBtn.style.display = 'none';
-      showToast('アプリをインストールしました！', 'success');
-    }
+    if (outcome === 'accepted') { pwaInstallBtn.style.display = 'none'; showToast('アプリをインストールしました！', 'success'); }
     deferredInstall = null;
   });
-
-  window.addEventListener('appinstalled', () => {
-    pwaInstallBtn.style.display = 'none';
-  });
+  window.addEventListener('appinstalled', () => { pwaInstallBtn.style.display = 'none'; });
 }
 
 // ─────────────────────────────────────────────────────
-// Init
+// 初期化
 // ─────────────────────────────────────────────────────
 
 function init() {
   loadFromStorage();
-  syncRecurringInterval(recurringToggle,  recurringInterval);
-  syncRecurringInterval(editRecurring,    editRecurringInt);
-  checkMissedReset(); // ← ページ起動時に「リセット漏れ」がないか確認
+  syncRecurringUI(recurringToggle, recurringInterval, weekdayPicker);
+  syncRecurringUI(editRecurring,   editRecurringInt,  editWeekdayPicker);
+  checkMissedReset();
   render();
   bindEvents();
   if (autoReset) scheduleAutoReset();

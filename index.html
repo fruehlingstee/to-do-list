@@ -4,11 +4,11 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
   <meta name="theme-color" content="#0e0f11" />
-  <meta name="description" content="TASKS — Personal To-Do Manager" />
+  <meta name="description" content="TASKS — タスク管理アプリ" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="TASKS" />
+  <meta name="apple-mobile-web-app-title" content="タスク" />
   <link rel="manifest" href="manifest.json" />
   <link rel="apple-touch-icon" href="icon.svg" />
   <title>TASKS</title>
@@ -21,15 +21,15 @@
   <div class="noise"></div>
   <div class="app">
 
-    <!-- ── Header ── -->
+    <!-- ヘッダー -->
     <header class="header">
       <div class="header-left">
         <span class="logo-mark">▸</span>
         <h1 class="logo">TASKS</h1>
-        <span class="version">v2.0</span>
+        <span class="version">v3.0</span>
       </div>
       <div class="header-right">
-        <div class="reset-toggle" title="自動リセット：繰り返しタスクを設定時刻に自動解除">
+        <div class="reset-toggle" title="自動リセット：繰り返しタスクを毎日0時に自動解除">
           <span class="toggle-label">手動</span>
           <label class="toggle-switch">
             <input type="checkbox" id="autoResetToggle" />
@@ -41,7 +41,7 @@
       </div>
     </header>
 
-    <!-- ── Stats ── -->
+    <!-- 統計バー -->
     <div class="stats-bar">
       <div class="stat">
         <span class="stat-num" id="totalCount">0</span>
@@ -69,17 +69,11 @@
       </div>
     </div>
 
-    <!-- ── Search + Sort ── -->
+    <!-- 検索・並び替え -->
     <div class="search-sort-bar">
       <div class="search-wrap">
         <span class="search-icon">⌕</span>
-        <input
-          type="text"
-          id="searchInput"
-          class="search-input"
-          placeholder="タスク・メモを検索..."
-          autocomplete="off"
-        />
+        <input type="text" id="searchInput" class="search-input" placeholder="タスク・メモを検索..." autocomplete="off" />
         <button id="clearSearch" class="clear-search" aria-label="検索クリア" style="display:none;">✕</button>
       </div>
       <select id="sortSelect" class="sort-select">
@@ -91,27 +85,20 @@
       </select>
     </div>
 
-    <!-- ── Input ── -->
+    <!-- タスク入力 -->
     <div class="input-section">
       <div class="input-row">
-        <input
-          type="text"
-          id="taskInput"
-          class="task-input"
-          placeholder="新しいタスクを入力..."
-          maxlength="120"
-          autocomplete="off"
-        />
+        <input type="text" id="taskInput" class="task-input" placeholder="新しいタスクを入力..." maxlength="120" autocomplete="off" />
         <select id="prioritySelect" class="priority-select">
           <option value="high">● 高</option>
           <option value="medium" selected>● 中</option>
           <option value="low">● 低</option>
         </select>
-        <button id="expandInputBtn" class="expand-input-btn" title="期限・繰り返し・メモ">▾ 詳細を開く</button>
+        <button id="expandInputBtn" class="expand-input-btn" title="期限・繰り返し・メモを設定">▾ 詳細を開く</button>
         <button id="addBtn" class="add-btn">追加 <span class="add-shortcut">↵</span></button>
       </div>
 
-      <!-- Expandable extra options -->
+      <!-- 詳細パネル -->
       <div class="input-extra" id="inputExtra">
         <div class="extra-grid">
           <div class="extra-field">
@@ -127,26 +114,32 @@
               </label>
               <select id="recurringInterval" class="interval-select" disabled>
                 <option value="daily">毎日</option>
-                <option value="weekly">毎週月曜</option>
+                <option value="every2days">2日に1回</option>
+                <option value="every3days">3日に1回</option>
+                <option value="weekdays">曜日を指定</option>
                 <option value="monthly">毎月1日</option>
               </select>
+            </div>
+            <!-- 曜日選択（曜日指定時のみ表示） -->
+            <div class="weekday-picker" id="weekdayPicker" style="display:none;">
+              <label class="weekday-btn" data-day="0"><input type="checkbox" value="0" /><span>日</span></label>
+              <label class="weekday-btn" data-day="1"><input type="checkbox" value="1" /><span>月</span></label>
+              <label class="weekday-btn" data-day="2"><input type="checkbox" value="2" /><span>火</span></label>
+              <label class="weekday-btn" data-day="3"><input type="checkbox" value="3" /><span>水</span></label>
+              <label class="weekday-btn" data-day="4"><input type="checkbox" value="4" /><span>木</span></label>
+              <label class="weekday-btn" data-day="5"><input type="checkbox" value="5" /><span>金</span></label>
+              <label class="weekday-btn" data-day="6"><input type="checkbox" value="6" /><span>土</span></label>
             </div>
           </div>
           <div class="extra-field extra-notes-field">
             <label class="extra-label">メモ</label>
-            <textarea
-              id="notesInput"
-              class="extra-textarea"
-              placeholder="補足メモ..."
-              rows="2"
-              maxlength="400"
-            ></textarea>
+            <textarea id="notesInput" class="extra-textarea" placeholder="補足メモ..." rows="2" maxlength="400"></textarea>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- ── Filters ── -->
+    <!-- フィルター -->
     <div class="filter-bar">
       <button class="filter-btn active" data-filter="all">すべて</button>
       <button class="filter-btn" data-filter="pending">未完了</button>
@@ -159,30 +152,30 @@
       </div>
     </div>
 
-    <!-- ── Task list ── -->
+    <!-- タスクリスト -->
     <ul class="task-list" id="taskList"></ul>
 
-    <!-- Empty state -->
+    <!-- 空の状態 -->
     <div class="empty-state" id="emptyState">
       <div class="empty-icon">▢</div>
       <p id="emptyMsg">タスクがありません</p>
       <p class="empty-sub" id="emptySubMsg">上のフォームから追加してください</p>
     </div>
 
-    <!-- Auto reset info -->
+    <!-- 自動リセット情報 -->
     <div class="auto-info" id="autoInfo" style="display:none;">
       <span class="auto-icon">↻</span>
       次の自動リセット（繰り返しタスクのみ）: <strong id="nextResetTime">—</strong>
     </div>
 
-    <!-- Footer -->
+    <!-- フッター -->
     <footer class="footer">
       <span id="lastSaved">—</span>
       <span class="footer-tip">ドラッグ並び替え ／ ▸ サブタスク展開</span>
     </footer>
   </div>
 
-  <!-- ── Edit modal ── -->
+  <!-- 編集モーダル -->
   <div class="modal-overlay" id="modalOverlay">
     <div class="modal">
       <div class="modal-header">
@@ -212,9 +205,21 @@
             </label>
             <select id="editRecurringInterval" class="interval-select" disabled>
               <option value="daily">毎日</option>
-              <option value="weekly">毎週月曜</option>
+              <option value="every2days">2日に1回</option>
+              <option value="every3days">3日に1回</option>
+              <option value="weekdays">曜日を指定</option>
               <option value="monthly">毎月1日</option>
             </select>
+          </div>
+          <!-- 曜日選択（編集モーダル） -->
+          <div class="weekday-picker" id="editWeekdayPicker" style="display:none;">
+            <label class="weekday-btn" data-day="0"><input type="checkbox" value="0" /><span>日</span></label>
+            <label class="weekday-btn" data-day="1"><input type="checkbox" value="1" /><span>月</span></label>
+            <label class="weekday-btn" data-day="2"><input type="checkbox" value="2" /><span>火</span></label>
+            <label class="weekday-btn" data-day="3"><input type="checkbox" value="3" /><span>水</span></label>
+            <label class="weekday-btn" data-day="4"><input type="checkbox" value="4" /><span>木</span></label>
+            <label class="weekday-btn" data-day="5"><input type="checkbox" value="5" /><span>金</span></label>
+            <label class="weekday-btn" data-day="6"><input type="checkbox" value="6" /><span>土</span></label>
           </div>
         </div>
       </div>
