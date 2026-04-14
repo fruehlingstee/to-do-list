@@ -3,7 +3,7 @@
    Cache-first strategy
    =========================== */
 
-const CACHE_NAME = 'tasks-v2';
+const CACHE_NAME = 'tasks-v3';
 const ASSETS = [
   './',
   './index.html',

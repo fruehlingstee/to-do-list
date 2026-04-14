@@ -3,6 +3,16 @@
    完全日本語版 + 繰り返し強化
    =========================== */
 
+// 古いService Workerのキャッシュを全削除（バージョンアップ時の残骸対策）
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations().then(regs => {
+    regs.forEach(reg => reg.unregister());
+  });
+  caches.keys().then(keys => {
+    keys.filter(k => k !== 'tasks-v3').forEach(k => caches.delete(k));
+  });
+}
+
 // ─────────────────────────────────────────────────────
 // 状態
 // ─────────────────────────────────────────────────────
